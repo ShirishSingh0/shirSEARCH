@@ -69,8 +69,9 @@ namespace shirSEARCH
         private const uint WDA_EXCLUDEFROMCAPTURE = 0x00000011; // Stealth recording exclusion
 
         // Configuration
-        private const string GEMINI_API_KEY = "";
+        private const string DEFAULT_GEMINI_API_KEY = "";
         private const string GEMINI_MODEL = "gemini-2.5-flash-lite";
+        private string currentApiKey;
 
         // Global Key Polling Thread
         private Thread pollerThread;
@@ -84,10 +85,143 @@ namespace shirSEARCH
         public MainWindow()
         {
             SetProcessDPIAware();
+            LoadApiKey();
             InitializeStealthTaskbarForm();
             SetupTray();
             StartGlobalKeyPoller();
             LogToFile("shirSEARCH started in Stealth Taskbar Mode. Ready for triggers.");
+        }
+
+        private string GetConfigFilePath()
+        {
+            return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "apikey.txt");
+        }
+
+        private void LoadApiKey()
+        {
+            try
+            {
+                string path = GetConfigFilePath();
+                if (File.Exists(path))
+                {
+                    string saved = File.ReadAllText(path).Trim();
+                    if (!string.IsNullOrEmpty(saved))
+                    {
+                        currentApiKey = saved;
+                        LogToFile("Loaded custom API key from apikey.txt");
+                        return;
+                    }
+                }
+            }
+            catch {}
+            currentApiKey = DEFAULT_GEMINI_API_KEY;
+        }
+
+        private void SaveApiKey(string key)
+        {
+            try
+            {
+                currentApiKey = key;
+                File.WriteAllText(GetConfigFilePath(), key);
+                LogToFile("Saved new API key to apikey.txt");
+            }
+            catch (Exception ex)
+            {
+                LogToFile("Failed to save API key: " + ex.Message);
+            }
+        }
+
+        private void ShowApiKeyDialog()
+        {
+            using (Form prompt = new Form())
+            {
+                prompt.Width = 480;
+                prompt.Height = 200;
+                prompt.FormBorderStyle = FormBorderStyle.FixedDialog;
+                prompt.Text = "shirSEARCH - Set Gemini API Key";
+                prompt.StartPosition = FormStartPosition.CenterScreen;
+                prompt.BackColor = Color.FromArgb(11, 19, 43);
+                prompt.ForeColor = Color.White;
+                prompt.MaximizeBox = false;
+                prompt.MinimizeBox = false;
+
+                Label textLabel = new Label()
+                {
+                    Left = 20,
+                    Top = 18,
+                    Width = 420,
+                    Text = "Enter your Google Gemini API Key (starts with AIzaSy...):",
+                    ForeColor = Color.FromArgb(45, 212, 191),
+                    Font = new Font("Segoe UI", 9.5f, FontStyle.Bold)
+                };
+
+                TextBox textBox = new TextBox()
+                {
+                    Left = 20,
+                    Top = 50,
+                    Width = 420,
+                    Text = currentApiKey,
+                    BackColor = Color.FromArgb(23, 37, 84),
+                    ForeColor = Color.White,
+                    BorderStyle = BorderStyle.FixedSingle,
+                    Font = new Font("Segoe UI", 10f)
+                };
+
+                Button saveBtn = new Button()
+                {
+                    Text = "Save Key",
+                    Left = 240,
+                    Width = 95,
+                    Top = 96,
+                    DialogResult = DialogResult.OK,
+                    BackColor = Color.FromArgb(16, 185, 129),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Font = new Font("Segoe UI", 9f, FontStyle.Bold),
+                    Cursor = Cursors.Hand
+                };
+                saveBtn.FlatAppearance.BorderSize = 0;
+
+                Button cancelBtn = new Button()
+                {
+                    Text = "Cancel",
+                    Left = 345,
+                    Width = 95,
+                    Top = 96,
+                    DialogResult = DialogResult.Cancel,
+                    BackColor = Color.FromArgb(31, 41, 55),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Font = new Font("Segoe UI", 9f),
+                    Cursor = Cursors.Hand
+                };
+                cancelBtn.FlatAppearance.BorderSize = 0;
+
+                saveBtn.Click += delegate { prompt.Close(); };
+                cancelBtn.Click += delegate { prompt.Close(); };
+
+                prompt.Controls.Add(textLabel);
+                prompt.Controls.Add(textBox);
+                prompt.Controls.Add(saveBtn);
+                prompt.Controls.Add(cancelBtn);
+                prompt.AcceptButton = saveBtn;
+                prompt.CancelButton = cancelBtn;
+
+                if (prompt.ShowDialog() == DialogResult.OK)
+                {
+                    string newKey = textBox.Text.Trim();
+                    if (!string.IsNullOrEmpty(newKey))
+                    {
+                        SaveApiKey(newKey);
+                        if (trayIcon != null)
+                        {
+                            trayIcon.BalloonTipTitle = "shirSEARCH";
+                            trayIcon.BalloonTipText = "API Key saved successfully!";
+                            trayIcon.ShowBalloonTip(3000);
+                        }
+                    }
+                }
+            }
         }
 
         private void InitializeStealthTaskbarForm()
@@ -256,7 +390,7 @@ namespace shirSEARCH
                         UpdateBadgeIcon("X");
                         if (trayIcon != null)
                         {
-                            trayIcon.Text = "shirSEARCH Error. See log file.";
+                            trayIcon.Text = "shirSEARCH Error. Right-click tray to set API key.";
                         }
                     }));
                 }
@@ -266,7 +400,8 @@ namespace shirSEARCH
         private string CallGeminiVision(string base64Image)
         {
             ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | SecurityProtocolType.Tls12;
-            string url = "https://generativelanguage.googleapis.com/v1beta/models/" + GEMINI_MODEL + ":generateContent?key=" + GEMINI_API_KEY;
+            string keyToUse = string.IsNullOrEmpty(currentApiKey) ? DEFAULT_GEMINI_API_KEY : currentApiKey;
+            string url = "https://generativelanguage.googleapis.com/v1beta/models/" + GEMINI_MODEL + ":generateContent?key=" + keyToUse;
 
             HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url);
             req.Method = "POST";
@@ -471,6 +606,8 @@ namespace shirSEARCH
 
             ContextMenu menu = new ContextMenu();
             menu.MenuItems.Add("Scan Whole Page (Ctrl+Win+Alt / F9)", delegate { TriggerScanAndSolveSilently(); });
+            menu.MenuItems.Add("-");
+            menu.MenuItems.Add("🔑 Set Gemini API Key...", delegate { ShowApiKeyDialog(); });
             menu.MenuItems.Add("-");
             menu.MenuItems.Add("Exit", delegate { Application.Exit(); });
             trayIcon.ContextMenu = menu;

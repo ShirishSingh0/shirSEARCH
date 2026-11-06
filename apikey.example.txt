@@ -1,0 +1,3 @@
+# Paste your Google Gemini API key below (without quotes or spaces):
+# Get a key for free from: https://aistudio.google.com/app/apikey
+AIzaSy...

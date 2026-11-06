@@ -6,6 +6,23 @@
 
 ---
 
+## 🔑 Custom API Key Support
+
+Anyone using `shirSEARCH` can easily add or change their own Google Gemini API key:
+
+### Method 1: Right-Click System Tray (GUI)
+1. Run `shirSEARCH.exe`.
+2. Right-click the `shirSEARCH` icon in your Windows System Tray (near the clock).
+3. Select **"🔑 Set Gemini API Key..."**.
+4. Paste your Gemini API key (starts with `AIzaSy...`) and click **Save Key**. It will be saved permanently to `apikey.txt`.
+
+### Method 2: Config File (`apikey.txt`)
+Simply create a text file named `apikey.txt` in the same directory as `shirSEARCH.exe` and paste your key inside.
+
+> *Get a free Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey).*
+
+---
+
 ## 🌟 Key Features
 
 - **100% Stealth Mode (No Popups)**:
@@ -23,7 +40,7 @@
 - **Anti-Screen-Recording Evasion**:
   - Enforces Windows API `SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE = 0x00000011)` so the app surface is completely excluded from screen recordings (OBS, Zoom, Discord, Teams, and browser proctoring tools).
 - **Zero Dependencies**:
-  - Built natively with Windows C# / .NET with ~16 KB binary footprint.
+  - Built natively with Windows C# / .NET with ~19 KB binary footprint.
 
 ---
 
@@ -35,7 +52,7 @@
 | <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>S</kbd> | **Backup Hotkey** |
 | <kbd>F9</kbd> | **Single-Key Fast Trigger** |
 | Double-click Tray Icon | Trigger manual scan |
-| Right-click Tray Icon | Open menu or exit application |
+| Right-click Tray Icon | **Set Gemini API Key**, manual scan, or exit |
 
 ---
 
