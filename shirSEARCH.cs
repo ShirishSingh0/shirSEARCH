@@ -18,9 +18,20 @@ namespace shirSEARCH
         [STAThread]
         public static void Main(string[] args)
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new MainWindow());
+            try
+            {
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                Application.Run(new MainWindow());
+            }
+            catch (Exception ex)
+            {
+                try
+                {
+                    File.AppendAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "shirSEARCH.log"), "[" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "] Crash: " + ex.ToString() + Environment.NewLine);
+                }
+                catch { }
+            }
         }
     }
 
@@ -600,19 +611,27 @@ namespace shirSEARCH
 
         private void SetupTray()
         {
-            trayIcon = new NotifyIcon();
-            trayIcon.Text = "shirSEARCH (Ctrl+Win+Alt)";
-            trayIcon.Visible = true;
+            try
+            {
+                trayIcon = new NotifyIcon();
+                trayIcon.Icon = this.Icon ?? SystemIcons.Application;
+                trayIcon.Text = "shirSEARCH (Ctrl+Win+Alt)";
+                trayIcon.Visible = true;
 
-            ContextMenu menu = new ContextMenu();
-            menu.MenuItems.Add("Scan Whole Page (Ctrl+Win+Alt / F9)", delegate { TriggerScanAndSolveSilently(); });
-            menu.MenuItems.Add("-");
-            menu.MenuItems.Add("🔑 Set Gemini API Key...", delegate { ShowApiKeyDialog(); });
-            menu.MenuItems.Add("-");
-            menu.MenuItems.Add("Exit", delegate { Application.Exit(); });
-            trayIcon.ContextMenu = menu;
+                ContextMenu menu = new ContextMenu();
+                menu.MenuItems.Add("Scan Whole Page (Ctrl+Win+Alt / F9)", delegate { TriggerScanAndSolveSilently(); });
+                menu.MenuItems.Add("-");
+                menu.MenuItems.Add("🔑 Set Gemini API Key...", delegate { ShowApiKeyDialog(); });
+                menu.MenuItems.Add("-");
+                menu.MenuItems.Add("Exit", delegate { Application.Exit(); });
+                trayIcon.ContextMenu = menu;
 
-            trayIcon.DoubleClick += delegate { TriggerScanAndSolveSilently(); };
+                trayIcon.DoubleClick += delegate { TriggerScanAndSolveSilently(); };
+            }
+            catch (Exception ex)
+            {
+                LogToFile("Error in SetupTray: " + ex.Message);
+            }
         }
     }
 }
