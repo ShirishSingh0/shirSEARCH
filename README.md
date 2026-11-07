@@ -56,10 +56,14 @@ Simply create a text file named `apikey.txt` in the same directory as `shirSEARC
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start & Automatic Boot
 
-### Running the Pre-compiled App
-Double-click `shirSEARCH.exe`. It will start in the background and reside silently in your taskbar and system tray.
+### 100% Standalone (No Assistant or Terminal Needed)
+`shirSEARCH` is a fully self-contained Windows program. You **do not need Antigravity, any AI assistant, or a command line running**.
+
+- **Automatic Launch on Boot**: Placed in your Windows Startup folder (`shell:startup`) so it runs automatically in stealth mode every time you turn on your PC.
+- **Desktop Shortcut**: A shortcut named `shirSEARCH` is created on your Desktop. You can double-click it at any time.
+- **Manual Launch**: Double-click `shirSEARCH.exe`. It runs silently in the background and sits ready in your Windows System Tray.
 
 ### Compiling from Source
 You can compile `shirSEARCH` on any Windows 10/11 system using the built-in C# compiler without installing Visual Studio:
