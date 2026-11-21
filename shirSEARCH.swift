@@ -24,6 +24,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         loadApiKey()
         setupStatusBar()
+        checkScreenRecordingPermission(promptIfNeeded: false)
         startKeyPoller()
         logToFile("shirSEARCH macOS started in Stealth Menu Bar Mode. Ready for triggers.")
     }
@@ -57,6 +58,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let keyItem = NSMenuItem(title: "🔑 Set Gemini API Key...", action: #selector(showApiKeyDialog), keyEquivalent: "")
         keyItem.target = self
         menu.addItem(keyItem)
+
+        let permItem = NSMenuItem(title: "🛡️ Fix Screen Recording Permission...", action: #selector(showScreenRecordingPermissionAlert), keyEquivalent: "")
+        permItem.target = self
+        menu.addItem(permItem)
 
         let loginItem = NSMenuItem(title: "Start at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
         loginItem.target = self
@@ -289,9 +294,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self = self else { return }
 
             guard let base64Data = self.captureScreenAsBase64() else {
-                self.logToFile("Failed to capture screen.")
+                self.logToFile("Failed to capture screen. Screen Recording permission is likely missing.")
                 self.updateStatus("❌ [Capture Error]", toolTip: "Screen capture failed. Check Screen Recording permissions.")
                 self.isProcessing = false
+                DispatchQueue.main.async {
+                    self.showScreenRecordingPermissionAlert()
+                }
                 return
             }
 
@@ -310,28 +318,69 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    func captureScreenAsBase64() -> String? {
-        let tempFile = NSTemporaryDirectory() + "shirsearch_capture.jpg"
+    // MARK: - Screen Recording Permission Helpers
+    func checkScreenRecordingPermission(promptIfNeeded: Bool = false) {
+        if #available(macOS 10.15, *) {
+            let hasAccess = CGPreflightScreenCaptureAccess()
+            if !hasAccess {
+                logToFile("Screen recording access not granted yet.")
+                if promptIfNeeded {
+                    showScreenRecordingPermissionAlert()
+                }
+            } else {
+                logToFile("Screen recording access verified.")
+            }
+        }
+    }
 
-        // Remove old temp file
+    @objc func showScreenRecordingPermissionAlert() {
+        if #available(macOS 10.15, *) {
+            CGRequestScreenCaptureAccess()
+        }
+
+        let alert = NSAlert()
+        alert.messageText = "Screen Recording Permission Required"
+        alert.informativeText = "macOS requires Screen Recording permission for shirSEARCH to capture and solve questions.\n\n1. Click 'Open System Settings' below\n2. Turn ON the toggle for Terminal (or shirSEARCH.app)\n3. If it is already on, toggle it OFF and ON again\n4. Try pressing Cmd+Ctrl+Opt or F9 again!"
+        alert.addButton(withTitle: "Open System Settings")
+        alert.addButton(withTitle: "Cancel")
+
+        NSApp.activate(ignoringOtherApps: true)
+        if alert.runModal() == .alertFirstButtonReturn {
+            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
+                NSWorkspace.shared.open(url)
+            }
+        }
+    }
+
+    func captureScreenAsBase64() -> String? {
+        // Strategy 1: CoreGraphics direct in-memory capture of main display
+        let displayID = CGMainDisplayID()
+        if let cgImage = CGDisplayCreateImage(displayID) {
+            let bitmapRep = NSBitmapImageRep(cgImage: cgImage)
+            if let jpegData = bitmapRep.representation(using: .jpeg, properties: [.compressionFactor: 0.85]),
+               jpegData.count > 1000 {
+                return jpegData.base64EncodedString()
+            }
+        }
+
+        // Strategy 2: Native screencapture CLI fallback
+        let tempFile = NSTemporaryDirectory() + "shirsearch_capture.jpg"
         try? FileManager.default.removeItem(atPath: tempFile)
 
-        // Native macOS high-resolution silent capture
         let process = Process()
         process.launchPath = "/usr/sbin/screencapture"
-        process.arguments = ["-x", "-C", "-t", "jpg", tempFile]
+        process.arguments = ["-x", "-t", "jpg", tempFile]
         process.launch()
         process.waitUntilExit()
 
-        guard FileManager.default.fileExists(atPath: tempFile),
-              let fileData = try? Data(contentsOf: URL(fileURLWithPath: tempFile)) else {
-            return nil
+        if FileManager.default.fileExists(atPath: tempFile),
+           let fileData = try? Data(contentsOf: URL(fileURLWithPath: tempFile)),
+           fileData.count > 1000 {
+            try? FileManager.default.removeItem(atPath: tempFile)
+            return fileData.base64EncodedString()
         }
 
-        // Clean up
-        try? FileManager.default.removeItem(atPath: tempFile)
-
-        return fileData.base64EncodedString()
+        return nil
     }
 
     func callGeminiVision(base64Image: String, completion: @escaping (Result<String, Error>) -> Void) {

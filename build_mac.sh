@@ -54,6 +54,8 @@ cat << 'EOF' > "$CONTENTS_DIR/Info.plist"
     <true/>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>NSScreenCaptureUsageDescription</key>
+    <string>shirSEARCH needs Screen Recording permission to read questions on your screen to solve them.</string>
 </dict>
 </plist>
 EOF
